@@ -1,0 +1,7 @@
+[tool.pytest.ini_options]
+# Without this, `pytest -v` (the plain CLI entry point, as opposed to
+# `python3 -m pytest`) never adds the repo root to sys.path, so
+# `from stacks.pipeline_stack import ...` in tests/test_stack_synth.py
+# fails with `ModuleNotFoundError: No module named 'stacks'`.
+pythonpath = ["."]
+testpaths = ["tests"]

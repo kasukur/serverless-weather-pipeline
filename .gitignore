@@ -1,0 +1,54 @@
+# --- Python -----------------------------------------------------------
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+dist/
+build/
+
+# --- CDK ----------------------------------------------------------------
+cdk.out/
+cdk.context.json
+*.cdk.staging/
+# Zipped Lambda build artifacts, if you ever build outside cdk synth
+*.zip
+
+# --- Node (only relevant if you ever add a package.json here) -----------
+node_modules/
+npm-debug.log*
+
+# --- Editors / OS ---------------------------------------------------------
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# --- Secrets and credentials ---------------------------------------------
+# None of these should ever exist in this repo -- deploys authenticate via
+# GitHub OIDC (see stacks/github_oidc_stack.py), not static keys. These
+# patterns exist as a backstop in case a local credentials file, .env, or
+# key ever gets dropped into the project directory by accident.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+.aws/
+credentials
+credentials.json
+secrets.json
+secrets.yaml
+secrets.yml
+*_rsa
+*_rsa.pub

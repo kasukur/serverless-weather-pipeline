@@ -1,0 +1,29 @@
+{
+  "app": "python3 app.py",
+  "watch": {
+    "include": ["**"],
+    "exclude": [
+      "README.md",
+      "cdk*.json",
+      "requirements*.txt",
+      "tests/**",
+      "**/__pycache__",
+      "**/*.pyc",
+      ".venv/**"
+    ]
+  },
+  "context": {
+    "github_owner": "CHANGE_ME",
+    "github_repo": "serverless-weather-pipeline",
+    "github_branch": "main",
+    "existing_oidc_provider_arn": "",
+    "alert_email": "",
+    "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
+    "@aws-cdk/core:checkSecretUsage": true,
+    "@aws-cdk/core:target-partitions": ["aws"],
+    "@aws-cdk-containers/ecs-service-extensions:enableDefaultLogDriver": true,
+    "@aws-cdk/aws-iam:minimizePolicies": true,
+    "@aws-cdk/aws-s3:createDefaultLoggingPolicy": true,
+    "@aws-cdk/aws-stepfunctions-tasks:useNewS3UriParametersForBedrockInvokeModelTask": true
+  }
+}

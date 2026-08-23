@@ -1,0 +1,39 @@
+name: Test
+
+# Runs on every PR and on pushes to main. No AWS credentials are used
+# here at all -- the Lambda unit tests are pure Python, and `cdk synth`
+# only needs to compile the app, not talk to an AWS account.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Install CDK CLI
+        run: npm install -g aws-cdk
+
+      - name: Run unit tests
+        run: pytest -v
+
+      - name: Validate the CDK app synthesizes
+        run: cdk synth --quiet --all

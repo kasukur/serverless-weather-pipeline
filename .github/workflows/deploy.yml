@@ -1,0 +1,58 @@
+name: Deploy
+
+# Deploys on every push to main, authenticating to AWS via GitHub's
+# OIDC provider -- no AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY anywhere
+# in this repo or its GitHub configuration. `permissions: id-token:
+# write` is what lets this job request the OIDC token in the first
+# place; `aws-actions/configure-aws-credentials` exchanges it for
+# short-lived credentials by assuming AWS_DEPLOY_ROLE_ARN (a repo
+# VARIABLE, not a secret -- see stacks/github_oidc_stack.py for why
+# that's safe).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: weather-pipeline-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Install CDK CLI
+        run: npm install -g aws-cdk
+
+      - name: Run unit tests
+        run: pytest -v
+
+      - name: Configure AWS credentials via GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: cdk deploy
+        run: >
+          cdk deploy WeatherPipeline --require-approval never
+          --context github_owner=${{ github.repository_owner }}
+          --context github_repo=${{ github.event.repository.name }}
+          --context github_branch=main
