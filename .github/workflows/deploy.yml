@@ -44,6 +44,12 @@ jobs:
       - name: Run unit tests
         run: pytest -v
 
+      - name: Debug OIDC context
+        run: |
+          echo "repository: ${{ github.repository }}"
+          echo "ref: ${{ github.ref }}"
+          echo "event_name: ${{ github.event_name }}"
+          
       - name: Configure AWS credentials via GitHub OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
