@@ -16,7 +16,7 @@ flowchart TD
     E --> H["TransformWeatherData (Lambda, pure function, no AWS calls)"]
     H -.-> I["splits successes vs failures"]
     H -.-> J["builds JSON-Lines body + partitioned S3 key"]
-    H --> K["LoadToS3 (native Step Functions -> S3 SDK integration, no Lambda)"]
+    H --> K["LoadToS3 (Lambda, writes to S3 via boto3)"]
     K --> L["S3 (processed/dt=YYYY-MM-DD/hour=HH/*.jsonl)"]
     L --> M["Glue Data Catalog table (partition projection -- no crawler)"]
     M --> N["Athena (query with plain SQL)"]
@@ -33,9 +33,15 @@ flowchart TD
   The Map state fetches every city in parallel, retries transient
   errors, and lets individual city failures continue past without
   failing the whole run.
-- **The S3 write is a native Step Functions SDK integration**
-  (`states:::aws-sdk:s3:putObject`), not a third Lambda. Fewer moving
-  parts, and it's a good example of when you don't need a Lambda at all.
+- **The S3 write is a small dedicated Lambda using boto3**, not a
+  Step Functions native SDK integration. A native `s3:putObject`
+  integration (`states:::aws-sdk:s3:putObject`) was tried first to
+  skip a Lambda entirely -- it's a neat trick when it works -- but it
+  turned out to write the JSON-*string-encoded* form of the body
+  (literal `\"` and `\n` characters) as the file content instead of
+  raw text, so every "row" failed to parse in Athena. Worth knowing
+  before you rely on `Body.$` for anything with embedded newlines. See
+  [`lambdas/load/handler.py`](lambdas/load/handler.py).
 - **Glue uses partition projection**, not a Crawler. Athena computes the
   `dt=`/`hour=` partitions from the query's `WHERE` clause instead of
   reading them from a catalog that something has to keep in sync (and
@@ -55,9 +61,11 @@ stacks/
 lambdas/
   fetch_weather/handler.py    Calls Open-Meteo for one city (stdlib only)
   transform/handler.py        Pure transform -> JSON-Lines (stdlib only)
+  load/handler.py             Writes the JSON-Lines body to S3 via boto3
 tests/
   test_fetch_weather.py       Unit tests (mocked HTTP)
   test_transform.py           Unit tests (pure function, no mocking needed)
+  test_load.py                Unit tests (mocked boto3)
   test_stack_synth.py         CDK assertions: resources exist, IAM is scoped
 athena/sample_queries.sql     Queries to run once data has landed
 scripts/trigger_and_check.py  Manually run + poll an execution

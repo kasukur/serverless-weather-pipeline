@@ -5,8 +5,12 @@
               -> Map: fetch current weather for each city in parallel
                        (Open-Meteo public API, no key needed)
               -> Lambda: transform results into JSON-Lines
-              -> Step Functions native SDK integration: PUT the file
-                 straight into S3 (no Lambda needed for the write)
+              -> Lambda: write the JSON-Lines body to S3 via boto3
+                 (a Step Functions native s3:putObject SDK integration
+                 was tried first to skip a Lambda here, but it wrote the
+                 JSON-string-escaped form of the body as the literal
+                 file content instead of raw text -- see
+                 lambdas/load/handler.py for details)
         -> Glue Data Catalog table over S3, using partition projection
            (no crawler to run/pay for -- Athena computes partitions
            on the fly from the dt=/hour= key layout)
@@ -128,6 +132,29 @@ class WeatherPipelineStack(Stack):
             description="Normalizes the Map's fetch results into a JSON-Lines S3 object.",
         )
 
+        load_fn = _lambda.Function(
+            self,
+            "LoadToS3Function",
+            runtime=_lambda.Runtime.PYTHON_3_12,
+            handler="handler.handler",
+            code=_lambda.Code.from_asset("lambdas/load"),
+            timeout=Duration.seconds(10),
+            memory_size=128,
+            log_group=logs.LogGroup(
+                self,
+                "LoadToS3LogGroup",
+                retention=logs.RetentionDays.TWO_WEEKS,
+                removal_policy=RemovalPolicy.DESTROY,
+            ),
+            description=(
+                "Writes the transformed JSON-Lines body to S3 via boto3. Exists because "
+                "Step Functions' native s3:putObject SDK integration doesn't reliably "
+                "carry a raw multi-line string as binary Body content -- see the comment "
+                "on lambdas/load/handler.py."
+            ),
+        )
+        data_bucket.grant_write(load_fn, "processed/*")
+
         # ---- Step Functions state machine ------------------------------
         prepare_cities = sfn.Pass(
             self,
@@ -178,19 +205,18 @@ class WeatherPipelineStack(Stack):
             result_path="$.transformed",
         )
 
-        load_to_s3 = tasks.CallAwsService(
+        load_to_s3 = tasks.LambdaInvoke(
             self,
             "LoadToS3",
-            service="s3",
-            action="putObject",
-            iam_action="s3:PutObject",
-            parameters={
-                "Bucket": data_bucket.bucket_name,
-                "Key.$": "$.transformed.key",
-                "Body.$": "$.transformed.body",
-                "ContentType": "application/json",
-            },
-            iam_resources=[data_bucket.arn_for_objects("processed/*")],
+            lambda_function=load_fn,
+            payload_response_only=True,
+            payload=sfn.TaskInput.from_object(
+                {
+                    "bucket": data_bucket.bucket_name,
+                    "key.$": "$.transformed.key",
+                    "body.$": "$.transformed.body",
+                }
+            ),
             result_path=sfn.JsonPath.DISCARD,
         )
 

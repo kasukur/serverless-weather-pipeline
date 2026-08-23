@@ -15,6 +15,16 @@ def test_pipeline_creates_exactly_one_state_machine():
     _synth_pipeline().resource_count_is("AWS::StepFunctions::StateMachine", 1)
 
 
+def test_pipeline_creates_our_three_lambdas_plus_cdks_auto_delete_helper():
+    # fetch, transform, and load are ours -- load replaced a Step
+    # Functions native s3:putObject SDK integration that turned out to
+    # corrupt multi-line string bodies (see lambdas/load/handler.py).
+    # The 4th is CDK's own auto-generated custom-resource Lambda that
+    # empties the bucket on stack deletion (from auto_delete_objects=True
+    # on WeatherDataBucket) -- not something this app defines directly.
+    _synth_pipeline().resource_count_is("AWS::Lambda::Function", 4)
+
+
 def test_pipeline_creates_hourly_schedule():
     template = _synth_pipeline()
     template.resource_count_is("AWS::Scheduler::Schedule", 1)
