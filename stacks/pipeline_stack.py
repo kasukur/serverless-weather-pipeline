@@ -1,6 +1,6 @@
 """The actual data pipeline:
 
-    EventBridge Scheduler (hourly)
+    EventBridge Scheduler (every 10 minutes)
         -> Step Functions state machine
               -> Map: fetch current weather for each city in parallel
                        (Open-Meteo public API, no key needed)
@@ -252,7 +252,7 @@ class WeatherPipelineStack(Stack):
             logs=sfn.LogOptions(destination=state_machine_log_group, level=sfn.LogLevel.ALL),
         )
 
-        # ---- EventBridge Scheduler (hourly trigger) ------------------
+        # ---- EventBridge Scheduler (runs every 10 minutes) ------------
         scheduler_role = iam.Role(
             self,
             "SchedulerExecutionRole",
@@ -264,7 +264,7 @@ class WeatherPipelineStack(Stack):
         scheduler.CfnSchedule(
             self,
             "HourlyWeatherSchedule",
-            schedule_expression="rate(1 hour)",
+            schedule_expression="rate(10 minutes)",
             flexible_time_window=scheduler.CfnSchedule.FlexibleTimeWindowProperty(mode="OFF"),
             target=scheduler.CfnSchedule.TargetProperty(
                 arn=state_machine.state_machine_arn,

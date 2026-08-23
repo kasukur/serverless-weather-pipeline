@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Manually start the weather pipeline's Step Functions execution and
 poll it to completion. Handy right after `cdk deploy` so you don't have
-to wait for the next hourly EventBridge Scheduler tick.
+to wait for the next EventBridge Scheduler tick.
 
 Usage:
     python3 scripts/trigger_and_check.py [--region ap-southeast-2]

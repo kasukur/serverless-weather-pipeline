@@ -7,7 +7,7 @@ stored anywhere** (authentication is via GitHub's OIDC provider).
 
 ```mermaid
 flowchart TD
-    A["EventBridge Scheduler (hourly)"] --> B["Step Functions state machine"]
+    A["EventBridge Scheduler (every 10 min)"] --> B["Step Functions state machine"]
     B --> C["PrepareCities (Pass)"]
     C --> D["ForEachCity (Map, concurrency 4)"]
     D --> E["FetchWeather (Lambda -> Open-Meteo public API)"]
@@ -148,7 +148,7 @@ check the repo's Secrets tab once it's set up and you'll see it's empty.
 Pull requests only run `.github/workflows/test.yml` (pytest + `cdk
 synth`), which needs no AWS access whatsoever.
 
-## Trying it without waiting for the hourly schedule
+## Trying it without waiting for the schedule
 
 ```bash
 python3 scripts/trigger_and_check.py --region ap-southeast-2
@@ -172,9 +172,10 @@ invocations and Step Functions state transitions are well within the
 free tier, S3 storage for a few JSON files is fractions of a cent,
 and Athena charges per byte scanned (a few cents at most for a demo).
 The one thing to actually watch: **the EventBridge schedule keeps
-running hourly, forever, until you disable or destroy it** -- it'll
-keep costing (trivial amounts, but still) even after you're done
-writing the blog post.
+running every 10 minutes, forever, until you disable or destroy it**
+-- still trivial cost at this scale, but it adds up faster than an
+hourly cadence, so don't forget to dial it back down (or destroy the
+stack) once you're done generating data for the post.
 
 ## Tearing down
 

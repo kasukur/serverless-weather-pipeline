@@ -25,12 +25,12 @@ def test_pipeline_creates_our_three_lambdas_plus_cdks_auto_delete_helper():
     _synth_pipeline().resource_count_is("AWS::Lambda::Function", 4)
 
 
-def test_pipeline_creates_hourly_schedule():
+def test_pipeline_creates_schedule_every_ten_minutes():
     template = _synth_pipeline()
     template.resource_count_is("AWS::Scheduler::Schedule", 1)
     template.has_resource_properties(
         "AWS::Scheduler::Schedule",
-        Match.object_like({"ScheduleExpression": "rate(1 hour)"}),
+        Match.object_like({"ScheduleExpression": "rate(10 minutes)"}),
     )
 
 
