@@ -33,7 +33,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Install Python dependencies
         run: pip install -r requirements.txt -r requirements-dev.txt
@@ -49,6 +49,11 @@ jobs:
           echo "repository: ${{ github.repository }}"
           echo "ref: ${{ github.ref }}"
           echo "event_name: ${{ github.event_name }}"
+
+      - name: Debug role ARN
+        run: |
+          echo "role_to_assume: '${{ vars.AWS_DEPLOY_ROLE_ARN }}'"
+          echo "region: '${{ vars.AWS_REGION }}'"
           
       - name: Configure AWS credentials via GitHub OIDC
         uses: aws-actions/configure-aws-credentials@v4
