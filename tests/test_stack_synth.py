@@ -81,8 +81,12 @@ def test_oidc_role_trust_is_scoped_to_repo_and_branch():
                                             {
                                                 "StringLike": Match.object_like(
                                                     {
+                                                        # GitHub's sub claim appends each side's
+                                                        # immutable numeric ID (e.g. "kasukur@1291877"),
+                                                        # so only the "@*" suffix is wildcarded here --
+                                                        # the owner/repo names themselves stay pinned.
                                                         "token.actions.githubusercontent.com:sub": (
-                                                            "repo:my-org/serverless-weather-pipeline:"
+                                                            "repo:my-org@*/serverless-weather-pipeline@*:"
                                                             "ref:refs/heads/main"
                                                         )
                                                     }

@@ -62,7 +62,18 @@ class GitHubOidcStack(Stack):
         # Restrict *which* GitHub workflow runs may assume this role:
         # only pushes to github_branch in github_owner/github_repo.
         # See https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect
-        sub_condition = f"repo:{github_owner}/{github_repo}:ref:refs/heads/{github_branch}"
+        #
+        # NOTE: GitHub's `sub` claim is no longer just "repo:OWNER/REPO:ref:...".
+        # It now appends each side's immutable numeric ID -- e.g.
+        # "repo:kasukur@1291877/serverless-weather-pipeline@1343631754:ref:refs/heads/main" --
+        # so that a trust policy can't be hijacked if the account or repo is
+        # later renamed/transferred and the old name gets reused by someone
+        # else. We wildcard just the "@<id>" part with StringLike below; the
+        # owner and repo NAMES on either side of it are still matched
+        # exactly, so this doesn't loosen who can assume the role -- confirmed
+        # against the real token via CloudTrail (AssumeRoleWithWebIdentity,
+        # errorCode AccessDenied) while debugging the initial deploy.
+        sub_condition = f"repo:{github_owner}@*/{github_repo}@*:ref:refs/heads/{github_branch}"
 
         deploy_role = iam.Role(
             self,
