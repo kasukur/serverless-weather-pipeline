@@ -1,8 +1,8 @@
 """Turn the Step Functions Map's fetch results into a JSON-Lines body and
 an S3 key partitioned by dt=YYYY-MM-DD/hour=HH.
 
-Deliberately does NOT call any AWS API -- the actual S3 write is done by
-Step Functions itself via a native SDK integration (see LoadToS3 in
+Deliberately does NOT call any AWS API -- the actual S3 write happens in
+a separate Lambda (see lambdas/load/handler.py and the LoadToS3 task in
 stacks/pipeline_stack.py), so this function needs no IAM permissions at
 all beyond writing CloudWatch Logs, and it's trivially unit-testable
 (see tests/test_transform.py) since `build_records` is a pure function.

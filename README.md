@@ -27,6 +27,73 @@ flowchart TD
     P --> Q["SNS -> email"]
 ```
 
+## Quickstart: test, deploy, verify, destroy
+
+The full one-time setup (bootstrap, OIDC stack, repo variables) is below.
+This section assumes that's already done and is the loop for everyday
+use -- run tests, deploy, confirm real data landed, tear it down.
+
+**1. Test** (pure Python + `cdk synth` -- no AWS credentials touched):
+
+```bash
+source .venv/bin/activate
+pytest -v
+cdk synth --context github_owner=<you> --context github_repo=<repo>
+```
+
+All 17 tests should pass and `cdk synth` should produce both stacks
+without errors.
+
+**2. Deploy:**
+
+```bash
+export AWS_REGION=ap-southeast-2
+export AWS_DEFAULT_REGION=ap-southeast-2
+cdk deploy WeatherPipeline
+```
+
+Or just `git push origin main` -- `deploy.yml` runs the identical
+command via the OIDC role, no local credentials needed at all.
+
+**3. Verify** -- trigger a run instead of waiting for the schedule,
+then confirm the data that landed is actually correct, not just that
+the execution reported success:
+
+```bash
+python3 scripts/trigger_and_check.py --region ap-southeast-2
+```
+
+Confirm the printed status is `SUCCEEDED`, then take the `key` from
+that command's JSON output and check the object landed with real
+newlines, not zero:
+
+```bash
+aws s3 cp s3://<DataBucketName-from-cdk-output>/<key> - | wc -l
+```
+
+Should print `4` (5 records, 4 newlines between them) -- `0` means
+something regressed in the S3 write path. Then run a query from
+[`athena/sample_queries.sql`](athena/sample_queries.sql) against that
+`dt=`/`hour=` partition (workgroup `weather-pipeline-wg`, database
+`weather_pipeline_db`) and confirm the columns aren't `NULL`.
+
+**4. Destroy** -- stop the schedule and delete the pipeline's
+resources:
+
+```bash
+cdk destroy WeatherPipeline
+```
+
+Leave `WeatherPipeline-GitHubOidc` deployed so a later redeploy skips
+the OIDC setup entirely -- it costs nothing sitting idle. One thing to
+know before running this: `WeatherDataBucket` has
+`auto_delete_objects=True`, so `cdk destroy` empties and deletes it.
+Back up anything worth keeping first:
+
+```bash
+aws s3 sync s3://<DataBucketName-from-cdk-output> ./backup-$(date +%F)
+```
+
 ## Why this design
 
 - **Step Functions does the orchestration, not a monolithic Lambda.**
@@ -37,7 +104,7 @@ flowchart TD
   Step Functions native SDK integration. A native `s3:putObject`
   integration (`states:::aws-sdk:s3:putObject`) was tried first to
   skip a Lambda entirely -- it's a neat trick when it works -- but it
-  turned out to write the JSON-*string-encoded* form of the body
+  turned out to write the JSON-_string-encoded_ form of the body
   (literal `\"` and `\n` characters) as the file content instead of
   raw text, so every "row" failed to parse in Athena. Worth knowing
   before you rely on `Body.$` for anything with embedded newlines. See
